@@ -2,7 +2,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 :root {
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
@@ -10,21 +9,30 @@
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
-  --primary: 142.1 76.2% 36.3%;
-  --primary-foreground: 355.7 100% 97.3%;
-  --secondary: 210 40% 98%;
+  
+  /* Cambiado de verde a naranja/marrón */
+  --primary: 28 74% 45%; /* naranja cálido */
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 30 30% 95%; /* beige suave */
   --secondary-foreground: 222.2 84% 4.9%;
-  --muted: 210 40% 98%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 98%;
+  
+  --muted: 30 30% 95%;
+  --muted-foreground: 25 15% 45%;
+  
+  --accent: 32 60% 55%; /* acento naranja suave */
   --accent-foreground: 222.2 84% 4.9%;
+  
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 142.1 76.2% 36.3%;
+  
+  --border: 30 20% 90%;
+  --input: 30 20% 90%;
+  
+  --ring: 28 74% 45%; /* mismo tono que el primario */
   --radius: 0.5rem;
 }
+
 
 * {
   margin: 0;

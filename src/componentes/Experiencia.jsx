@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 const experiences = [
   {
@@ -32,7 +32,7 @@ const experiences = [
     ],
   },
   {
-    title: "Full Stack Developer - Plataforma Multiplataforma",
+    title: "Full Stack Developer - Mobile",
     company: "Adoptame",
     location: "Remoto",
     period: "01/12/2024",
@@ -59,6 +59,8 @@ export function ExperienceSection() {
   const wrapperRef = useRef(null); // contenedor alto (scroll vertical)
   const stickyRef = useRef(null); // contenedor sticky (alto = 100vh)
   const contentRef = useRef(null); // ancho grande movible en X
+  const scrollTimeoutRef = useRef(null); // timeout para snap
+  const isScrollingRef = useRef(false); // flag de scroll activo
 
   // Utilidad: limitar valor entre 0 y 1
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -116,24 +118,25 @@ export function ExperienceSection() {
     return { startYear: currentYear, startMonth: 1, endYear: currentYear, endMonth: currentMonth };
   };
 
-  const parsed = experiences.map((e) => {
-    const p = parsePeriod(e.period);
-    const startIndex = p.startYear * 12 + (p.startMonth - 1); // índice mensual absoluto
-    const endIndex = p.endYear * 12 + (p.endMonth - 1);
-    return { ...e, ...p, startIndex, endIndex };
-  });
+  const parsed = useMemo(() => {
+    return experiences.map((e) => {
+      const p = parsePeriod(e.period);
+      const startIndex = p.startYear * 12 + (p.startMonth - 1); // índice mensual absoluto
+      const endIndex = p.endYear * 12 + (p.endMonth - 1);
+      return { ...e, ...p, startIndex, endIndex };
+    });
+  }, []);
 
-  const minMonthIndex = Math.min(...parsed.map(p => p.startIndex));
-  const maxMonthIndex = Math.max(...parsed.map(p => p.endIndex));
-  const totalMonths = Math.max(1, maxMonthIndex - minMonthIndex);
-  const minYear = Math.floor(minMonthIndex / 12);
-  const maxYear = Math.floor(maxMonthIndex / 12);
+  const minMonthIndex = useMemo(() => Math.min(...parsed.map(p => p.startIndex)), [parsed]);
+  const maxMonthIndex = useMemo(() => Math.max(...parsed.map(p => p.endIndex)), [parsed]);
+  const totalMonths = useMemo(() => Math.max(1, maxMonthIndex - minMonthIndex), [maxMonthIndex, minMonthIndex]);
+  const minYear = useMemo(() => Math.floor(minMonthIndex / 12), [minMonthIndex]);
+  const maxYear = useMemo(() => Math.floor(maxMonthIndex / 12), [maxMonthIndex]);
 
   // Medir anchos: scrollerWidth, timelineWidth y contentWidth (timeline + paddings laterales)
   useEffect(() => {
     const measure = () => {
-      const scroller = document.querySelector('.scroll-snap-container');
-      const vw = scroller ? scroller.clientWidth : window.innerWidth;
+      const vw = window.innerWidth;
       setScrollerWidth(vw);
       const PX_PER_YEAR = 260;
       const PX_PER_MONTH = PX_PER_YEAR / 12;
@@ -144,51 +147,116 @@ export function ExperienceSection() {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, []);
+  }, [totalMonths]);
 
   // Mapear scroll vertical del contenedor con snap a un índice discreto por hito y centrar la tarjeta
   useEffect(() => {
-    const scroller = document.querySelector('.scroll-snap-container');
-    if (!scroller) return; // fallback si cambia el layout
-
-    const getOffsetTopRelativeTo = (el, ancestor) => {
-      let top = 0;
-      let node = el;
-      while (node && node !== ancestor) {
-        top += node.offsetTop || 0;
-        node = node.offsetParent;
-      }
-      return top;
-    };
+    if (!timelineWidth || !scrollerWidth) return;
 
     const onScroll = () => {
       if (!wrapperRef.current) return;
+      
       const wrapper = wrapperRef.current;
-      const start = getOffsetTopRelativeTo(wrapper, scroller);
-      const end = start + wrapper.offsetHeight - scroller.clientHeight;
-      const p = clamp01((scroller.scrollTop - start) / Math.max(1, (end - start)));
+      const viewportHeight = window.innerHeight;
+      
+      // Calcular el progreso basado en la posición del wrapper en el viewport
+      // Usar getBoundingClientRect para obtener la posición real
+      const rect = wrapper.getBoundingClientRect();
+      const scrollTop = window.scrollY;
+      const wrapperTop = scrollTop + rect.top;
+      const wrapperHeight = wrapper.offsetHeight;
+      
+      const start = wrapperTop;
+      const end = start + wrapperHeight - viewportHeight;
+      const p = clamp01((scrollTop - start) / Math.max(1, (end - start)));
+      
       setProgress(p);
 
-      // Segmentar el progreso para que avance hito por hito
+      // Calcular índice con interpolación suave (sin redondeo brusco)
       const steps = Math.max(1, parsed.length - 1);
-      const idx = Math.round(p * steps);
-      const clampedIdx = Math.max(0, Math.min(parsed.length - 1, idx));
+      const rawIdx = p * steps;
+      const clampedIdx = Math.max(0, Math.min(parsed.length - 1, Math.round(rawIdx)));
       setActiveIndex(clampedIdx);
 
-      // Calcular el translateX para centrar el punto del hito activo (usando fecha de fin)
-      if (contentRef.current) {
-        const ratio = (parsed[clampedIdx].endIndex - minMonthIndex) / totalMonths;
-        const pointX = (scrollerWidth / 2) + ratio * timelineWidth; // compensar padding izquierdo
-        const maxTranslate = Math.max(0, (timelineWidth + scrollerWidth) - scrollerWidth); // = timelineWidth
+      // Calcular el translateX con interpolación suave entre elementos
+      if (contentRef.current && timelineWidth > 0) {
+        // Usar distancia uniforme entre elementos en lugar de fechas
+        // Invertir la dirección: empezar desde el final (derecha) hacia el inicio (izquierda)
+        const uniformSpacing = timelineWidth / Math.max(1, parsed.length - 1);
+        const invertedIdx = (parsed.length - 1) - rawIdx; // invertir el índice
+        const targetPosition = invertedIdx * uniformSpacing; // posición interpolada suave
+        const pointX = (scrollerWidth / 2) + targetPosition;
+        const maxTranslate = Math.max(0, timelineWidth);
         const target = Math.max(0, Math.min(maxTranslate, pointX - scrollerWidth / 2));
+        
         setTransformX(target);
+      }
+
+      // Limpiar timeout anterior
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      isScrollingRef.current = true;
+
+      // Después de 300ms sin scroll, hacer snap a la tarjeta más cercana
+      scrollTimeoutRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+        snapToNearestCard();
+      }, 300);
+    };
+
+    const snapToNearestCard = () => {
+      if (!wrapperRef.current) return;
+
+      const wrapper = wrapperRef.current;
+      const viewportHeight = window.innerHeight;
+      const rect = wrapper.getBoundingClientRect();
+      const scrollTop = window.scrollY;
+      const wrapperTop = scrollTop + rect.top;
+      const wrapperHeight = wrapper.offsetHeight;
+      
+      const start = wrapperTop;
+      const end = start + wrapperHeight - viewportHeight;
+      const currentProgress = clamp01((scrollTop - start) / Math.max(1, (end - start)));
+
+      // Calcular el índice basado en si pasó el 50% hacia la siguiente tarjeta
+      const steps = Math.max(1, parsed.length - 1);
+      const rawIdx = currentProgress * steps;
+      
+      // Si pasó más del 50% hacia la siguiente tarjeta, ir a ella
+      // Si está antes del 50%, quedarse en la actual
+      const nearestIdx = Math.floor(rawIdx + 0.5); // Redondea al más cercano considerando el 50%
+      const clampedNearestIdx = Math.max(0, Math.min(parsed.length - 1, nearestIdx));
+      
+      // Calcular la posición de scroll ideal para ese índice
+      const targetProgress = clampedNearestIdx / steps;
+      const targetScrollTop = start + (targetProgress * (end - start));
+      
+      // Hacer snap si no está exactamente en la posición de una tarjeta
+      const diff = Math.abs(currentProgress - targetProgress);
+      
+      if (diff > 0.01) { // Solo si hay una diferencia mínima
+        window.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
       }
     };
 
-    scroller.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // Ejecutar inmediatamente y después de un pequeño delay para asegurar que todo esté renderizado
     onScroll();
-    return () => scroller.removeEventListener('scroll', onScroll);
-  }, [contentWidth, minYear, totalMonths, parsed]);
+    const timer = setTimeout(onScroll, 100);
+    
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(timer);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [timelineWidth, scrollerWidth, parsed]);
 
   return (
     <section id="experience" className="scroll-snap-section py-8 bg-muted/30">
@@ -205,7 +273,7 @@ export function ExperienceSection() {
           ref={wrapperRef}
           className="relative -mt-2 md:-mt-4"
           style={{
-            height: `${100 + Math.max(0, parsed.length - 1) * 35}vh`,
+            height: `${100 + Math.max(0, parsed.length - 1) * 60}vh`,
             width: '100vw',
             marginLeft: 'calc(50% - 50vw)',
             marginRight: 'calc(50% - 50vw)'
@@ -220,7 +288,7 @@ export function ExperienceSection() {
               style={{
                 width: `${timelineWidth + scrollerWidth}px`,
                 transform: `translateX(-${transformX}px)`,
-                transition: 'transform 200ms ease-out'
+                transition: 'transform 600ms cubic-bezier(0.25, 0.1, 0.25, 1)'
               }}
             >
               {/* Contenedor interno del timeline (sin padding) */}
@@ -230,13 +298,15 @@ export function ExperienceSection() {
               >
                 {/* Línea base */}
                 <div className="absolute left-0 right-0 h-0.5 bg-border/40 z-0" style={{ top: '50%' }} />
-                {/* Línea de progreso */}
+                {/* Línea de progreso - crece de derecha a izquierda siguiendo el scroll invertido */}
                 <div
-                  className="absolute h-1 bg-accent/80 shadow-[0_0_20px_theme(colors.accent.DEFAULT,/0.4)] z-0"
+                  className="absolute h-1 bg-gradient-to-l from-accent via-accent to-accent/80 z-0"
                   style={{
                     top: 'calc(50% - 2px)',
-                    left: 0,
-                    width: `${(activeIndex / Math.max(1, parsed.length - 1)) * 100}%`
+                    right: 0,
+                    width: `${progress * 100}%`,
+                    transition: 'width 150ms ease-out, box-shadow 150ms ease-out',
+                    boxShadow: `0 0 ${20 + progress * 10}px rgba(16, 185, 129, ${0.4 + progress * 0.3})`
                   }}
                 />
 
@@ -276,16 +346,16 @@ export function ExperienceSection() {
 
                 {/* Hitos */}
                 {parsed.map((exp, index) => {
-                  const ratio = (exp.endIndex - minMonthIndex) / totalMonths;
+                  // Usar espaciado uniforme en lugar de fechas reales
+                  // Invertir posiciones: el último elemento (más reciente) va primero
+                  const invertedIndex = (parsed.length - 1) - index;
+                  const uniformRatio = parsed.length > 1 ? invertedIndex / (parsed.length - 1) : 0.5;
                   const isActive = index === activeIndex;
                   return (
-                    <div key={index} className="absolute" style={{ left: `${ratio * 100}%`, top: '50%', transform: 'translate(-50%, -50%)' }}>
-                      {/* Punto */}
-                      <div className={`w-5 h-5 rounded-full border-4 border-background transition-all duration-300 ${
-                        isActive ? 'bg-accent scale-125 shadow-lg shadow-accent/50' : 'bg-accent/50 scale-100'
-                      }`} />
+                    <div key={index} className="absolute" style={{ left: `${uniformRatio * 100}%`, top: '50%', transform: 'translate(-50%, -50%)' }}>
+
                       {/* Card */}
-                      <div className={`mt-6 w-[360px] md:w-[480px] lg:w-[560px] max-w-[90vw] border rounded-xl p-6 bg-card/95 backdrop-blur shadow-xl transition-all duration-500 ${
+                      <div className={`mt-6 w-[360px] md:w-[480px] lg:w-[560px] max-w-[90vw] border rounded-xl p-6 bg-card/95 backdrop-blur shadow-xl transition-all duration-[800ms] ease-out ${
                         isActive ? 'opacity-100 scale-100 border-accent/40 ring-1 ring-accent/20 z-10' : 'opacity-0 scale-95 border-border/40 pointer-events-none'
                       } ${isActive ? 'max-h-[70vh] overflow-auto' : ''}`}>
                         <div className="flex items-center justify-between gap-2 mb-3">
@@ -310,29 +380,6 @@ export function ExperienceSection() {
                         )}
                       </div>
 
-                      {/* Año del hito activo al costado de la tarjeta (según fecha de fin) */}
-                      {isActive && (
-                        <>
-                          {/* Mobile / sm: card ~360px => offset ≈ 180 + 16 = 196px */}
-                          <div className="absolute md:hidden pointer-events-none" style={{ top: '50%', left: '50%', transform: 'translateY(-50%)', marginLeft: '196px' }}>
-                            <span className="inline-block text-xs text-foreground bg-card/90 px-2 py-1 rounded shadow shadow-green-800/40">
-                              {exp.endYear}
-                            </span>
-                          </div>
-                          {/* md: card ~480px => offset ≈ 240 + 16 = 256px */}
-                          <div className="absolute hidden md:block lg:hidden pointer-events-none" style={{ top: '50%', left: '50%', transform: 'translateY(-50%)', marginLeft: '256px' }}>
-                            <span className="inline-block text-sm text-foreground bg-card/90 px-2 py-1 rounded shadow">
-                              {exp.endYear}
-                            </span>
-                          </div>
-                          {/* lg: card ~560px => offset ≈ 280 + 16 = 296px */}
-                          <div className="absolute hidden lg:block pointer-events-none" style={{ top: '50%', left: '50%', transform: 'translateY(-50%)', marginLeft: '296px' }}>
-                            <span className="inline-block text-sm text-foreground bg-card/90 px-2 py-1 rounded shadow-lg shadow-green-600/20">
-                              {exp.endYear}
-                            </span>
-                          </div>
-                        </>
-                      )}
                     </div>
                   );
                 })}

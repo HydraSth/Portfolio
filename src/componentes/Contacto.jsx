@@ -44,10 +44,10 @@ export function ContactSection() {
       setStatus("")
       setFeedback("")
 
-      const res = await fetch('http://localhost:3001/enviar-correo', {
+      const res = await fetch('https://serviciosjuan-production.up.railway.app/api/enviar-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, email, mensaje }),
+        body: JSON.stringify({ nombre, correo_electronico: email, mensaje }),
       })
 
       if (!res.ok) {
@@ -57,7 +57,7 @@ export function ContactSection() {
 
       const data = await res.json()
       setStatus("success")
-      setFeedback(data?.mensaje || "Correo enviado exitosamente")
+      setFeedback(data?.message || "Correo enviado exitosamente")
       // Reset form
       setFormData({ nombre: "", email: "", mensaje: "" })
     } catch (error) {
@@ -81,7 +81,7 @@ export function ContactSection() {
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-foreground mb-4">Trabajemos Juntos</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-            ¿Tenés un proyecto en mente?<br/> Me encantaría escuchar tus ideas y ayudarte a hacerlas realidad
+            ¿Tenés un proyecto en mente?<br/> Me encantaría conocer tus ideas y colaborar para hacerlas realidad
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export function ContactSection() {
           <div className="border border-border rounded-lg p-6 bg-card">
             <div className="mb-6">
               <h3 className="text-xl font-semibold text-card-foreground">Envíame un mensaje</h3>
-              <p className="text-muted-foreground">Cuéntame sobre tu proyecto y te responderé lo antes posible</p>
+              <p className="text-muted-foreground">Contame sobre tu proyecto y te responderé lo antes posible</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -179,7 +179,7 @@ export function ContactSection() {
               <div>
                 <textarea
                   name="mensaje"
-                  placeholder="Cuéntame sobre tu proyecto..."
+                  placeholder="Contame sobre tu proyecto..."
                   value={formData.mensaje}
                   onChange={handleChange}
                   required
@@ -191,7 +191,7 @@ export function ContactSection() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full bg-accent hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed text-accent-foreground px-6 py-3 rounded-md font-medium transition-colors flex items-center justify-center gap-2`}
+                className={`w-full bg-accent hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed text-background px-6 py-3 rounded-md font-medium transition-colors flex items-center justify-center gap-2`}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

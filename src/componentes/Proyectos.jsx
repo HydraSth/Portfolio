@@ -2,30 +2,34 @@ import React from 'react';
 
 const projects = [
   {
-    title: "E-commerce Platform",
-    description: "Plataforma completa de comercio electrónico con Next.js, Stripe y base de datos PostgreSQL",
+    title: "Aqua – Plataforma E-commerce",
+    description:
+      "Diseño y desarrollo de tienda online con carrito de compras, integración de pasarela de pagos, Google Maps API y dashboard administrativo con métricas en tiempo real.",
+    image: "https://i.ibb.co/v4FcqP4n/Captura-de-pantalla-2025-10-09-200302.png",
+    tech: ["MongoDB", "Express", "React", "Node.js", "Tailwind CSS", "Google Cloud"],
+    github: "#",
+    demo: "https://www.aquapurificadores.com/",
+  },
+  {
+    title: "Margaria Neumáticos – E-commerce & Automatización",
+    description:
+      "Plataforma completa de comercio electrónico y gestión interna desarrollada con stack MERN. Incluye panel administrativo, control de usuarios, generación de presupuestos en PDF e integraciones con APIs externas.",
     image: "https://i.ibb.co/hMJyrNj/Captura-de-pantalla-2024-11-25-030320.png",
-    tech: ["Next.js", "TypeScript", "Stripe", "PostgreSQL"],
+    tech: ["MongoDB", "Express", "React", "Node.js", "Google Cloud", "Mercado Libre API", "WhatsApp Business API"],
     github: "#",
-    demo: "https://www.margaria.ar/",
+    demo: "#",
   },
   {
-    title: "Task Management App",
-    description: "Aplicación de gestión de tareas con colaboración en tiempo real usando Socket.io",
+    title: "Adoptame – Plataforma Web + Mobile",
+    description:
+      "App multiplataforma para adopción de mascotas con sistema de matching inteligente, panel de refugios, estadísticas, módulo educativo y seguimiento post-adopción.",
     image: "https://i.ibb.co/SyP22cv/image.png",
-    tech: ["React", "Node.js", "Socket.io", "MongoDB"],
+    tech: ["React Native", "Node.js", "Express", "MongoDB", "Tailwind CSS"],
     github: "#",
     demo: "#",
   },
-  {
-    title: "AI Chat Assistant",
-    description: "Asistente de chat inteligente integrado con OpenAI API y interfaz conversacional",
-    image: "https://i.ibb.co/rfBNpBc/Captura-de-pantalla-2024-11-25-030617.png",
-    tech: ["Next.js", "OpenAI API", "Tailwind CSS", "Vercel"],
-    github: "#",
-    demo: "#",
-  },
-]
+];
+
 
 export function ProjectsSection() {
   return (
@@ -61,20 +65,28 @@ export function ProjectsSection() {
                   ))}
                 </div>
 
-                {/* <div className="flex gap-3">
-                  <a 
-                    href={project.github} 
-                    className="flex-1 px-4 py-2 border border-border rounded-md text-center text-sm font-medium hover:bg-muted transition-colors"
-                  >
-                    Código
-                  </a>
-                  <a 
-                    href={project.demo} 
-                    className="flex-1 px-4 py-2 bg-accent hover:bg-accent/90 text-accent-foreground rounded-md text-center text-sm font-medium transition-colors"
-                  >
-                    Demo
-                  </a>
-                </div> */}
+                <div className="flex gap-3">
+                  {
+                    project.demo && project.demo !== "#" && (
+                      <a 
+                        href={project.demo} 
+                        className="flex-1 px-4 py-2 bg-accent hover:bg-accent/90 text-background rounded-md text-center text-sm font-medium transition-colors"
+                      >
+                        Demo
+                      </a>
+                    )
+                  }
+                  {
+                    project.github && project.github !== "#" && (
+                      <a 
+                        href={project.github} 
+                        className="flex-1 px-4 py-2 bg-accent hover:bg-accent/90 text-background rounded-md text-center text-sm font-medium transition-colors"
+                      >
+                        Código
+                      </a>
+                    )
+                  }
+                </div>
               </div>
             </div>
           ))}
